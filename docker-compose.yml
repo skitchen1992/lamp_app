@@ -27,6 +27,7 @@ services:
       ORDER_DATABASE_NAME: ${ORDER_DATABASE_NAME:?Set ORDER_DATABASE_NAME in .env}
       ORDER_DATABASE_USER: ${ORDER_DATABASE_USER:?Set ORDER_DATABASE_USER in .env}
       ORDER_DATABASE_PASSWORD: ${ORDER_DATABASE_PASSWORD:?Set ORDER_DATABASE_PASSWORD in .env}
+      ORDER_PRODUCT_SERVICE_URL: http://product-management-service:8000
     depends_on:
       order-db:
         condition: service_healthy
