@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "lamp-app-microservices"
+version = "0.1.0"
+description = "First-stage FastAPI microservices for the lamp factory shop."
+authors = ["Nikita"]
+readme = "README.md"
+packages = [{ include = "services" }]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.14"
+asyncpg = ">=0.30.0,<1.0.0"
+fastapi = "^0.115.0"
+pydantic = "^2.8.0"
+pydantic-settings = "^2.4.0"
+uvicorn = { extras = ["standard"], version = "^0.30.0" }
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.8.0"
+httpx = "^0.27.0"
+pytest = "^8.3.0"
+
+[build-system]
+requires = ["poetry-core>=1.8.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ["py311"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
