@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 
 OrderStatus = Literal[
     "new", "confirmed", "processing", "shipped", "completed", "canceled"
@@ -58,7 +58,7 @@ class CreateOrderRequest(CamelModel):
     customer_name: str = Field(min_length=1, max_length=255)
     company_name: str | None = Field(default=None, max_length=255)
     phone: str = Field(min_length=1, max_length=32)
-    email: str = Field(min_length=3, max_length=255)
+    email: EmailStr = Field(max_length=255)
     delivery_address: str | None = Field(default=None, max_length=500)
     comment: str | None = None
     delivery_type: DeliveryType = "delivery"
