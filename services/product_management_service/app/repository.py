@@ -1,8 +1,9 @@
 import asyncio
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -83,6 +84,10 @@ class ProductRepository:
         status: ProductStatus | None,
         page: int,
         limit: int,
+        *,
+        search_query: str | None = None,
+        min_price: Decimal | None = None,
+        max_price: Decimal | None = None,
     ) -> ProductListResponse:
         await self.ensure_schema()
         offset = (page - 1) * limit
@@ -91,18 +96,36 @@ class ProductRepository:
             filters = []
             if status is not None:
                 filters.append(Product.status == status)
+            if search_query is not None:
+                pattern = f"%{search_query}%"
+                filters.append(
+                    or_(
+                        Product.name.ilike(pattern),
+                        Product.sku.ilike(pattern),
+                        Product.slug.ilike(pattern),
+                        Product.short_description.ilike(pattern),
+                    )
+                )
+            if min_price is not None:
+                filters.append(Product.price >= min_price)
+            if max_price is not None:
+                filters.append(Product.price <= max_price)
 
-            total = await session.scalar(
-                select(func.count()).select_from(Product).where(*filters)
-            )
-            result = await session.scalars(
+            count_stmt = select(func.count()).select_from(Product)
+            if filters:
+                count_stmt = count_stmt.where(*filters)
+            total = await session.scalar(count_stmt)
+
+            list_stmt = (
                 select(Product)
-                .where(*filters)
                 .options(selectinload(Product.images))
                 .order_by(Product.is_featured.desc(), Product.created_at.desc())
                 .limit(limit)
                 .offset(offset)
             )
+            if filters:
+                list_stmt = list_stmt.where(*filters)
+            result = await session.scalars(list_stmt)
 
             return ProductListResponse(
                 items=[build_product_summary(product) for product in result.all()],

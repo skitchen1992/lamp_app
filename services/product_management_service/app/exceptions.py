@@ -1,0 +1,2 @@
+class InvalidProductListParams(Exception):
+    pass

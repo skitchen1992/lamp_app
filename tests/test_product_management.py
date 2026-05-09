@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi.testclient import TestClient
 
 from services.product_management_service.app.repository import StockCannotBeNegative
+from services.product_management_service.app.services.product_service import ProductService
 from services.product_management_service.app.schemas import (
     CategoryResponse,
     ProductListResponse,
@@ -21,13 +22,28 @@ NOW = datetime(2026, 4, 25, 10, 0, tzinfo=timezone.utc)
 class FakeProductRepository:
     def __init__(self) -> None:
         self.list_status = None
+        self.list_search_query = None
+        self.list_min_price = None
+        self.list_max_price = None
         self.created_payload = None
         self.created_category_payload = None
         self.updated_category_payload = None
         self.deleted_category_id = None
 
-    async def list_products(self, status, page: int, limit: int) -> ProductListResponse:
+    async def list_products(
+        self,
+        status,
+        page: int,
+        limit: int,
+        *,
+        search_query: str | None = None,
+        min_price: Decimal | None = None,
+        max_price: Decimal | None = None,
+    ) -> ProductListResponse:
         self.list_status = status
+        self.list_search_query = search_query
+        self.list_min_price = min_price
+        self.list_max_price = max_price
         return ProductListResponse(
             items=[
                 ProductSummaryResponse(
@@ -136,6 +152,35 @@ def test_list_products_uses_active_status_by_default(monkeypatch) -> None:
     assert repository.list_status == "active"
 
 
+def test_list_products_passes_search_and_price_range(monkeypatch) -> None:
+    module, repository = product_module_with_fake_repository(monkeypatch)
+
+    response = TestClient(module.app).get(
+        "/api/v1/products",
+        params={
+            "query": "LED",
+            "minPrice": "100",
+            "maxPrice": "500",
+        },
+    )
+
+    assert response.status_code == 200
+    assert repository.list_search_query == "LED"
+    assert repository.list_min_price == Decimal("100")
+    assert repository.list_max_price == Decimal("500")
+
+
+def test_list_products_rejects_inverted_price_range(monkeypatch) -> None:
+    module, _repository = product_module_with_fake_repository(monkeypatch)
+
+    response = TestClient(module.app).get(
+        "/api/v1/products",
+        params={"minPrice": "300", "maxPrice": "100"},
+    )
+
+    assert response.status_code == 422
+
+
 def test_create_product_accepts_postman_payload(monkeypatch) -> None:
     module, repository = product_module_with_fake_repository(monkeypatch)
 
@@ -232,6 +277,7 @@ def product_module_with_fake_repository(monkeypatch):
     module = importlib.import_module("services.product_management_service.app.main")
     repository = FakeProductRepository()
     monkeypatch.setattr(module, "product_repository", repository)
+    monkeypatch.setattr(module, "product_service", ProductService(repository))
     return module, repository
 
 

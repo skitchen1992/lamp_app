@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Query, status
@@ -7,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from services.common.database import check_database
 from services.common.logging import setup_logging
 from services.common.schemas import HealthResponse
+from services.product_management_service.app.exceptions import InvalidProductListParams
 from services.product_management_service.app.repository import (
     CategoryConflict,
     CategoryNotFound,
@@ -15,6 +17,7 @@ from services.product_management_service.app.repository import (
     ProductRepository,
     StockCannotBeNegative,
 )
+from services.product_management_service.app.services.product_service import ProductService
 from services.product_management_service.app.schemas import (
     CategoryResponse,
     CreateCategoryRequest,
@@ -36,6 +39,7 @@ settings = Settings()
 app = FastAPI(title=settings.service_name, version=APP_VERSION)
 setup_logging(app, settings.service_name)
 product_repository = ProductRepository(settings.database_url)
+product_service = ProductService(product_repository)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -59,11 +63,26 @@ async def health() -> HealthResponse:
 @app.get("/api/v1/products", response_model=ProductListResponse)
 async def list_products(
     status_filter: ProductStatus | None = Query(default="active", alias="status"),
+    search_query: str | None = Query(default=None, alias="query"),
+    min_price: Decimal | None = Query(default=None, ge=0, alias="minPrice"),
+    max_price: Decimal | None = Query(default=None, ge=0, alias="maxPrice"),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> ProductListResponse:
     try:
-        return await product_repository.list_products(status_filter, page, limit)
+        return await product_service.list_products(
+            status_filter,
+            page,
+            limit,
+            search_query=search_query,
+            min_price=min_price,
+            max_price=max_price,
+        )
+    except InvalidProductListParams as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
     except DATABASE_EXCEPTIONS as exc:
         raise database_unavailable() from exc
 
