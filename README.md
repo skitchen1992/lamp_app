@@ -49,11 +49,19 @@ availability.
 `auth-service` owns users and refresh sessions. The API Gateway routes these
 endpoints to it:
 
-- `POST /register`
 - `POST /login`
 - `POST /refresh`
 - `POST /logout`
 - `GET /me`
+
+Admin-only endpoint:
+
+- `POST /register`
+
+All auth users are treated as admins. Because registration creates a new admin
+account, it requires a valid admin Bearer access token at the API Gateway. The
+first admin must be provisioned outside the public HTTP API, for example through
+a trusted one-off bootstrap step.
 
 `product-management-service` owns product and category data. The API Gateway
 routes these endpoints to it:
@@ -61,6 +69,9 @@ routes these endpoints to it:
 - `GET /api/v1/products`
 - `GET /api/v1/products/{id}`
 - `GET /api/v1/categories`
+
+Admin-only endpoints:
+
 - `POST /api/v1/internal/categories`
 - `PUT /api/v1/internal/categories/{id}`
 - `DELETE /api/v1/internal/categories/{id}`
@@ -78,10 +89,17 @@ endpoints to it:
 
 - `POST /api/v1/cart/calculate`
 - `POST /api/v1/orders`
-- `GET /api/v1/orders/{id}`
 - `GET /api/v1/orders/{id}/status`
+
+Admin-only endpoints:
+
+- `GET /api/v1/orders/{id}`
 - `GET /api/v1/internal/orders`
 - `PATCH /api/v1/internal/orders/{id}/status`
+
+Admin-only routes require `Authorization: Bearer <access-token>`. The API
+Gateway validates the JWT locally before forwarding the request to the domain
+service. `GATEWAY_ACCESS_TOKEN_SECRET` must match `AUTH_ACCESS_TOKEN_SECRET`.
 
 ## Run with Docker Compose
 
@@ -150,6 +168,8 @@ or as split values:
 - `*_DATABASE_HOST`, `*_DATABASE_PORT`, `*_DATABASE_NAME`,
   `*_DATABASE_USER`, `*_DATABASE_PASSWORD`
 - `AUTH_ACCESS_TOKEN_SECRET` for signing auth access tokens.
+- `GATEWAY_ACCESS_TOKEN_SECRET` for validating auth access tokens at the API
+  Gateway. It must match `AUTH_ACCESS_TOKEN_SECRET`.
 - `ORDER_PRODUCT_SERVICE_URL` for synchronous product lookups during cart
   calculation and order creation. It must point to the API Gateway.
 - `GATEWAY_AUTH_SERVICE_URL`, `GATEWAY_PRODUCT_SERVICE_URL`, and

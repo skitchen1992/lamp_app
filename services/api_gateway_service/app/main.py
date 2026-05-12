@@ -8,6 +8,11 @@ from fastapi import FastAPI, HTTPException, Request, status
 from starlette.responses import Response
 
 from services.api_gateway_service.app.settings import Settings
+from services.auth_service.app.security import (
+    ExpiredAccessToken,
+    InvalidAccessToken,
+    read_access_token,
+)
 from services.common.logging import setup_logging
 from services.common.schemas import HealthResponse
 
@@ -25,6 +30,12 @@ HOP_BY_HOP_HEADERS = {
     "host",
     "content-length",
 }
+
+ADMIN_PROTECTED_PREFIXES = (
+    "/api/v1/internal/products",
+    "/api/v1/internal/categories",
+    "/api/v1/internal/orders",
+)
 
 
 @dataclass(frozen=True)
@@ -59,6 +70,9 @@ async def gateway_proxy(full_path: str, request: Request) -> Response:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Route is not registered in API Gateway",
         )
+
+    if requires_admin_authorization(request.method, request.url.path):
+        authorize_admin_request(request)
 
     body = await request.body()
     return await forward_request(request, upstream, body)
@@ -103,6 +117,70 @@ def resolve_upstream(path: str) -> Upstream | None:
 
 def path_matches(path: str, prefixes: tuple[str, ...]) -> bool:
     return any(path == prefix or path.startswith(f"{prefix}/") for prefix in prefixes)
+
+
+def requires_admin_authorization(method: str, path: str) -> bool:
+    method = method.upper()
+    normalized_path = normalize_path(path)
+
+    if method == "OPTIONS":
+        return False
+
+    if method == "POST" and normalized_path == "/register":
+        return True
+
+    if path_matches(normalized_path, ADMIN_PROTECTED_PREFIXES):
+        return True
+
+    if path_matches(normalized_path, ("/api/v1/orders",)):
+        return not is_public_order_request(method, normalized_path)
+
+    return False
+
+
+def normalize_path(path: str) -> str:
+    return path.rstrip("/") or "/"
+
+
+def is_public_order_request(method: str, path: str) -> bool:
+    if method == "POST" and path == "/api/v1/orders":
+        return True
+    return method == "GET" and is_order_status_path(path)
+
+
+def is_order_status_path(path: str) -> bool:
+    parts = path.strip("/").split("/")
+    return (
+        len(parts) == 5
+        and parts[:3] == ["api", "v1", "orders"]
+        and parts[4] == "status"
+    )
+
+
+def authorize_admin_request(request: Request) -> None:
+    authorization = request.headers.get("authorization")
+    _authorize_admin_request(authorization)
+
+
+def _authorize_admin_request(authorization: str | None) -> None:
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        raise unauthorized("Bearer token is required")
+
+    try:
+        read_access_token(token, settings.access_token_secret)
+    except ExpiredAccessToken as exc:
+        raise unauthorized("Access token is expired") from exc
+    except InvalidAccessToken as exc:
+        raise unauthorized("Access token is invalid") from exc
+
+
+def unauthorized(detail: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 async def forward_request(

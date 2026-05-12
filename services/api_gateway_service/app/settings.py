@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     product_service_url: str = "http://localhost:8001"
     order_service_url: str = "http://localhost:8002"
     upstream_timeout_seconds: float = 5.0
+    access_token_secret: str = "change-me-auth-access-token-secret"
 
     model_config = SettingsConfigDict(
         env_prefix="GATEWAY_",

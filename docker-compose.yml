@@ -61,6 +61,7 @@ services:
       GATEWAY_AUTH_SERVICE_URL: http://auth-service:8000
       GATEWAY_PRODUCT_SERVICE_URL: http://product-management-service:8000
       GATEWAY_ORDER_SERVICE_URL: http://order-management-service:8000
+      GATEWAY_ACCESS_TOKEN_SECRET: ${AUTH_ACCESS_TOKEN_SECRET:?Set AUTH_ACCESS_TOKEN_SECRET in .env}
     depends_on:
       auth-service:
         condition: service_started
