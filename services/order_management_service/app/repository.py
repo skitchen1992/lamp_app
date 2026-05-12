@@ -191,7 +191,7 @@ class OrderRepository:
                             old_status=old_status,
                             new_status=new_status,
                             comment=comment,
-                            changed_by="admin-panel-service",
+                            changed_by="api-gateway-service",
                         )
                     )
 

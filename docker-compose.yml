@@ -13,8 +13,8 @@ services:
     depends_on:
       product-db:
         condition: service_healthy
-    ports:
-      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${PRODUCT_SERVICE_PORT:-8001}:8000"
+    expose:
+      - "8000"
 
   order-management-service:
     build:
@@ -27,29 +27,28 @@ services:
       ORDER_DATABASE_NAME: ${ORDER_DATABASE_NAME:?Set ORDER_DATABASE_NAME in .env}
       ORDER_DATABASE_USER: ${ORDER_DATABASE_USER:?Set ORDER_DATABASE_USER in .env}
       ORDER_DATABASE_PASSWORD: ${ORDER_DATABASE_PASSWORD:?Set ORDER_DATABASE_PASSWORD in .env}
-      ORDER_PRODUCT_SERVICE_URL: http://product-management-service:8000
+      ORDER_PRODUCT_SERVICE_URL: http://api-gateway-service:8000
     depends_on:
       order-db:
         condition: service_healthy
-    ports:
-      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${ORDER_SERVICE_PORT:-8002}:8000"
+    expose:
+      - "8000"
 
-  admin-panel-service:
+  api-gateway-service:
     build:
       context: .
       args:
-        SERVICE_MODULE: services.admin_panel_service.app.main
+        SERVICE_MODULE: services.api_gateway_service.app.main
     environment:
-      ADMIN_DATABASE_HOST: admin-db
-      ADMIN_DATABASE_PORT: "5432"
-      ADMIN_DATABASE_NAME: ${ADMIN_DATABASE_NAME:?Set ADMIN_DATABASE_NAME in .env}
-      ADMIN_DATABASE_USER: ${ADMIN_DATABASE_USER:?Set ADMIN_DATABASE_USER in .env}
-      ADMIN_DATABASE_PASSWORD: ${ADMIN_DATABASE_PASSWORD:?Set ADMIN_DATABASE_PASSWORD in .env}
+      GATEWAY_PRODUCT_SERVICE_URL: http://product-management-service:8000
+      GATEWAY_ORDER_SERVICE_URL: http://order-management-service:8000
     depends_on:
-      admin-db:
-        condition: service_healthy
+      product-management-service:
+        condition: service_started
+      order-management-service:
+        condition: service_started
     ports:
-      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${ADMIN_SERVICE_PORT:-8003}:8000"
+      - "${SERVICE_BIND_ADDRESS:-127.0.0.1}:${GATEWAY_SERVICE_PORT:-8000}:8000"
 
   product-db:
     image: postgres:16-alpine
@@ -83,23 +82,6 @@ services:
     volumes:
       - order_db_data:/var/lib/postgresql/data
 
-  admin-db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${ADMIN_DATABASE_NAME:?Set ADMIN_DATABASE_NAME in .env}
-      POSTGRES_USER: ${ADMIN_DATABASE_USER:?Set ADMIN_DATABASE_USER in .env}
-      POSTGRES_PASSWORD: ${ADMIN_DATABASE_PASSWORD:?Set ADMIN_DATABASE_PASSWORD in .env}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    ports:
-      - "${DATABASE_BIND_ADDRESS:-127.0.0.1}:${ADMIN_DATABASE_HOST_PORT:-5435}:5432"
-    volumes:
-      - admin_db_data:/var/lib/postgresql/data
-
 volumes:
   product_db_data:
   order_db_data:
-  admin_db_data:
