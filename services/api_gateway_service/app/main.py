@@ -68,6 +68,18 @@ def resolve_upstream(path: str) -> Upstream | None:
     if path_matches(
         path,
         (
+            "/register",
+            "/login",
+            "/refresh",
+            "/logout",
+            "/me",
+        ),
+    ):
+        return Upstream("auth-service", settings.auth_service_url)
+
+    if path_matches(
+        path,
+        (
             "/api/v1/products",
             "/api/v1/categories",
             "/api/v1/internal/products",

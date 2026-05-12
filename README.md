@@ -1,9 +1,10 @@
 # Lamp App Microservices
 
-Backend for the lamp factory shop. The repository contains three FastAPI
+Backend for the lamp factory shop. The repository contains four FastAPI
 services:
 
 - `api-gateway-service`
+- `auth-service`
 - `product-management-service`
 - `order-management-service`
 
@@ -17,6 +18,7 @@ Client
   |
   v
 api-gateway-service
+  |-- /register, /login, /refresh, /logout, /me -> auth-service
   |-- /api/v1/products, /api/v1/categories -> product-management-service
   |-- /api/v1/cart, /api/v1/orders         -> order-management-service
 
@@ -43,6 +45,15 @@ Each service has a health endpoint:
 Domain service health endpoints check that the service is alive and can connect
 to its own PostgreSQL database. The API Gateway health endpoint reports gateway
 availability.
+
+`auth-service` owns users and refresh sessions. The API Gateway routes these
+endpoints to it:
+
+- `POST /register`
+- `POST /login`
+- `POST /refresh`
+- `POST /logout`
+- `GET /me`
 
 `product-management-service` owns product and category data. The API Gateway
 routes these endpoints to it:
@@ -114,7 +125,7 @@ cp .env.example .env
 Start databases:
 
 ```bash
-docker compose up product-db order-db
+docker compose up auth-db product-db order-db
 ```
 
 Run a service:
@@ -123,9 +134,10 @@ Run a service:
 poetry run uvicorn services.api_gateway_service.app.main:app --reload --port 8000
 poetry run uvicorn services.product_management_service.app.main:app --reload --port 8001
 poetry run uvicorn services.order_management_service.app.main:app --reload --port 8002
+poetry run uvicorn services.auth_service.app.main:app --reload --port 8003
 ```
 
-Keep all three processes running for order flows. The order service uses the
+Keep all four processes running for order flows. The order service uses the
 gateway for product lookups, so cart calculation and order creation need the
 gateway and product service to be available.
 
@@ -134,13 +146,14 @@ gateway and product service to be available.
 Runtime database settings can be provided either as a full service-specific URL
 or as split values:
 
-- `PRODUCT_DATABASE_URL`, `ORDER_DATABASE_URL`
+- `AUTH_DATABASE_URL`, `PRODUCT_DATABASE_URL`, `ORDER_DATABASE_URL`
 - `*_DATABASE_HOST`, `*_DATABASE_PORT`, `*_DATABASE_NAME`,
   `*_DATABASE_USER`, `*_DATABASE_PASSWORD`
+- `AUTH_ACCESS_TOKEN_SECRET` for signing auth access tokens.
 - `ORDER_PRODUCT_SERVICE_URL` for synchronous product lookups during cart
   calculation and order creation. It must point to the API Gateway.
-- `GATEWAY_PRODUCT_SERVICE_URL` and `GATEWAY_ORDER_SERVICE_URL` for gateway
-  upstream routing.
+- `GATEWAY_AUTH_SERVICE_URL`, `GATEWAY_PRODUCT_SERVICE_URL`, and
+  `GATEWAY_ORDER_SERVICE_URL` for gateway upstream routing.
 
 When a full URL is set, it takes priority. Otherwise, the app builds the URL
 from the split values. Docker Compose uses split values for database names,
@@ -152,8 +165,10 @@ Default local ports:
 - API Gateway: `8000`
 - Product service: `8001`
 - Order service: `8002`
+- Auth service: `8003`
 - Product database: `5433`
 - Order database: `5434`
+- Auth database: `5435`
 
 ## Checks
 

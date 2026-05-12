@@ -9,6 +9,16 @@ from fastapi.testclient import TestClient
     ("path", "expected_name", "expected_base_url"),
     [
         (
+            "/register",
+            "auth-service",
+            "http://auth.local",
+        ),
+        (
+            "/me",
+            "auth-service",
+            "http://auth.local",
+        ),
+        (
             "/api/v1/products",
             "product-management-service",
             "http://product.local",
@@ -113,6 +123,7 @@ def test_gateway_forwards_request_to_selected_upstream(monkeypatch) -> None:
 def gateway_module(monkeypatch):
     module = importlib.import_module("services.api_gateway_service.app.main")
     settings = module.Settings(
+        auth_service_url="http://auth.local",
         product_service_url="http://product.local",
         order_service_url="http://order.local",
         upstream_timeout_seconds=1.5,

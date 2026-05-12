@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 SERVICE_MODULES = [
     "services.api_gateway_service.app.main",
+    "services.auth_service.app.main",
     "services.product_management_service.app.main",
     "services.order_management_service.app.main",
 ]
@@ -29,6 +30,7 @@ def required_env_value(env_name: str) -> str:
 def set_required_database_passwords(monkeypatch):
     for env_name in DATABASE_PASSWORD_ENV_NAMES:
         monkeypatch.setenv(env_name, required_env_value(env_name))
+    monkeypatch.setenv("AUTH_DATABASE_PASSWORD", "auth_password")
 
 
 def test_health_endpoint_returns_service_status(monkeypatch):
