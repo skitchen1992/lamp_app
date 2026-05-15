@@ -10,7 +10,7 @@ class Settings(BaseServiceSettings):
     database_name: str = "order_db"
     database_user: str = "order_user"
     database_password: str = ""
-    product_service_url: str = "http://localhost:8001"
+    product_service_url: str = "http://localhost:8000"
 
     model_config = SettingsConfigDict(
         env_prefix="ORDER_",

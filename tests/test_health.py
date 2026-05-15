@@ -8,14 +8,14 @@ from fastapi.testclient import TestClient
 
 
 SERVICE_MODULES = [
+    "services.api_gateway_service.app.main",
+    "services.auth_service.app.main",
     "services.product_management_service.app.main",
     "services.order_management_service.app.main",
-    "services.admin_panel_service.app.main",
 ]
 DATABASE_PASSWORD_ENV_NAMES = [
     "PRODUCT_DATABASE_PASSWORD",
     "ORDER_DATABASE_PASSWORD",
-    "ADMIN_DATABASE_PASSWORD",
 ]
 DOTENV_VALUES = dotenv_values(Path(__file__).resolve().parents[1] / ".env")
 
@@ -30,6 +30,7 @@ def required_env_value(env_name: str) -> str:
 def set_required_database_passwords(monkeypatch):
     for env_name in DATABASE_PASSWORD_ENV_NAMES:
         monkeypatch.setenv(env_name, required_env_value(env_name))
+    monkeypatch.setenv("AUTH_DATABASE_PASSWORD", "auth_password")
 
 
 def test_health_endpoint_returns_service_status(monkeypatch):
@@ -40,7 +41,8 @@ def test_health_endpoint_returns_service_status(monkeypatch):
 
     for module_name in SERVICE_MODULES:
         module = importlib.import_module(module_name)
-        monkeypatch.setattr(module, "check_database", fake_check_database)
+        if hasattr(module, "check_database"):
+            monkeypatch.setattr(module, "check_database", fake_check_database)
 
         response = TestClient(module.app).get("/health")
 
